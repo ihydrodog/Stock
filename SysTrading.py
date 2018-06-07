@@ -1,11 +1,12 @@
 import pandas_datareader.data as web
 import datetime
 import matplotlib.pyplot as plt
-from zipline.api import order_target, record, symbol
+from zipline.api import order_target, order, order_percent, record, symbol
 from zipline.algorithm import TradingAlgorithm
 
 start = datetime.datetime(2010, 1, 1)
 end = datetime.datetime(2016, 3, 29)
+# end = datetime.datetime(2011, 1, 1)
 data = web.DataReader("AAPL", "yahoo", start, end)
 
 #plt.plot(data.index, data['Adj Close'])
@@ -27,17 +28,19 @@ def handle_data(context, data):
     if context.i < long:
         return
 
-    ma5 = data.history(context.sym, 'price', short, '1d').mean()
-    ma20 = data.history(context.sym, 'price', long, '1d').mean()
+    sma = data.history(context.sym, 'price', short, '1d').mean()
+    lma = data.history(context.sym, 'price', long, '1d').mean()
 
-    if ma5 > ma20:
-        order_target(context.sym, 100)
+    if sma > lma:
+        order_percent(context.sym, 1)
     else:
-        order_target(context.sym, -100)
+    # elif sma < lma:
+    #     order_percent(context.sym, 0)
+        pass
 
-    record(AAPL=data.current(context.sym, "price"), ma5=ma5, ma20=ma20)
+    record(AAPL=data.current(context.sym, "price"), sma=sma, lma=lma)
 
-algo = TradingAlgorithm(initialize=initialize, handle_data=handle_data)
+algo = TradingAlgorithm(initialize=initialize, handle_data=handle_data )
 result = algo.run(data)
 
 print( result.info() )
@@ -49,18 +52,20 @@ result[ 'portfolio_value'].plot( ax =ax1 )
 
 ax2 = figure.add_subplot( 212 )
 result[ 'AAPL'].plot( ax =ax2 )
-result[ ['ma5','ma20'] ].plot( ax =ax2 )
+result[ ['sma','lma'] ].plot( ax =ax2 )
 
 
 perf_trans = result.ix[[t != [] for t in result.transactions]]
 buys = perf_trans.ix[[t[0]['amount'] > 0 for t in perf_trans.transactions]]
 sells = perf_trans.ix[
     [t[0]['amount'] < 0 for t in perf_trans.transactions]]
-ax2.plot(buys.index, result.ma5.ix[buys.index],
-         '^', markersize=10, color='m')
-ax2.plot(sells.index, result.ma5.ix[sells.index],
-         'v', markersize=10, color='k')
+ax2.plot(buys.index, result.sma.ix[buys.index],
+         '^', markersize=5, color='m')
+ax2.plot(sells.index, result.sma.ix[sells.index],
+         'v', markersize=5, color='k')
+print( result['portfolio_value'].head() )
+print( result['portfolio_value'].tail() )
 
+print( result['portfolio_value'] )
 plt.show()
 
-print( result['portfolio_value'].tail() )
